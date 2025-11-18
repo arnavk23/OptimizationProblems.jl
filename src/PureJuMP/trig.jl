@@ -19,8 +19,7 @@ function trig(args...; n::Int = default_nvar, kwargs...)
     model,
     Min,
     (1 / n) * sum(
-      i * (1 - cos(x[i])) +
-      sum(
+      i * (1 - cos(x[i])) + sum(
         5 * (1 + mod(i, 5) + mod(j, 5)) * sin(x[j]) + (i + j) / 10 * cos(x[j]) for
         j = max(1, i - 2):min(n, i + 2)
       ) for i = 1:n

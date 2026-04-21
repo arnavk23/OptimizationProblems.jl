@@ -32,117 +32,50 @@ function _check_adjusted_warning(expected_msg::AbstractString, expected_nvar::In
 end
 
 @testset "Adjusted dimension warnings" begin
-  _check_adjusted_warning("NZF1: number of variables adjusted from 1 to 26", 26) do
-    ADNLPProblems.NZF1(n = 1)
-  end
-  _check_adjusted_warning("NZF1: number of variables adjusted from 1 to 26", 26) do
-    MathOptNLPModel(PureJuMP.NZF1(n = 1))
-  end
+  warning_cases = [
+    (; msg = "NZF1: number of variables adjusted from 1 to 26", nvar = 26, ctor = () -> ADNLPProblems.NZF1(n = 1)),
+    (; msg = "NZF1: number of variables adjusted from 1 to 26", nvar = 26, ctor = () -> MathOptNLPModel(PureJuMP.NZF1(n = 1))),
+    (; msg = "spmsrtls: number of variables adjusted from 99 to 100", nvar = 100, ctor = () -> ADNLPProblems.spmsrtls(n = 99)),
+    (; msg = "spmsrtls: number of variables adjusted from 99 to 100", nvar = 100, ctor = () -> MathOptNLPModel(PureJuMP.spmsrtls(n = 99))),
+    (; msg = "chainwoo: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.chainwoo(n = 1)),
+    (; msg = "chainwoo: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.chainwoo(n = 1))),
+    (; msg = "catenary: number of variables adjusted from 10 to 9", nvar = 9, ctor = () -> ADNLPProblems.catenary(n = 10)),
+    (; msg = "catenary: number of variables adjusted from 10 to 9", nvar = 9, ctor = () -> MathOptNLPModel(PureJuMP.catenary(n = 10))),
+    (; msg = "clplatea: number of variables adjusted from 5 to 9", nvar = 9, ctor = () -> ADNLPProblems.clplatea(n = 5)),
+    (; msg = "clplatea: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.clplatea(n = 5))),
+    (; msg = "clplateb: number of variables adjusted from 5 to 9", nvar = 9, ctor = () -> ADNLPProblems.clplateb(n = 5)),
+    (; msg = "clplateb: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.clplateb(n = 5))),
+    (; msg = "clplatec: number of variables adjusted from 5 to 9", nvar = 9, ctor = () -> ADNLPProblems.clplatec(n = 5)),
+    (; msg = "clplatec: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.clplatec(n = 5))),
+    (; msg = "fminsrf2: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.fminsrf2(n = 1)),
+    (; msg = "fminsrf2: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.fminsrf2(n = 1))),
+    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.powellsg(n = 1)),
+    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.powellsg(use_nls = true, n = 1)),
+    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.powellsg(n = 1))),
+    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.powellsg(use_nls = true, n = 1))),
+    (; msg = "srosenbr: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> ADNLPProblems.srosenbr(n = 1)),
+    (; msg = "srosenbr: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> MathOptNLPModel(PureJuMP.srosenbr(n = 1))),
+    (; msg = "watson: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> ADNLPProblems.watson(n = 1)),
+    (; msg = "watson: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> ADNLPProblems.watson(use_nls = true, n = 1)),
+    (; msg = "watson: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> MathOptNLPModel(PureJuMP.watson(n = 1))),
+    (; msg = "woods: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.woods(n = 1)),
+    (; msg = "woods: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.woods(n = 1))),
+    (; msg = "bearing: number of variables adjusted from 1 to 9", nvar = 9, ctor = () -> ADNLPProblems.bearing(n = 1)),
+    (; msg = "bearing: number of variables adjusted from 1 to 9", nvar = 9, ctor = () -> MathOptNLPModel(PureJuMP.bearing(n = 1))),
+    (; msg = "broydn7d: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> ADNLPProblems.broydn7d(n = 5)),
+    (; msg = "broydn7d: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.broydn7d(n = 5))),
+    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> ADNLPProblems.dixmaane(n = 1)),
+    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> MathOptNLPModel(PureJuMP.dixmaane(n = 1))),
+    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> ADNLPProblems.dixmaani(n = 1)),
+    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> MathOptNLPModel(PureJuMP.dixmaani(n = 1))),
+    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> ADNLPProblems.dixmaanm(n = 1)),
+    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> MathOptNLPModel(PureJuMP.dixmaanm(n = 1))),
+    (; msg = "spmsrtls: number of variables adjusted from 99 to 100", nvar = 100, ctor = () -> ADNLPProblems.spmsrtls(use_nls = true, n = 99)),
+    (; msg = "NZF1: number of variables adjusted from 1 to 26", nvar = 26, ctor = () -> ADNLPProblems.NZF1(use_nls = true, n = 1)),
+  ]
 
-  _check_adjusted_warning("spmsrtls: number of variables adjusted from 99 to 100", 100) do
-    ADNLPProblems.spmsrtls(n = 99)
-  end
-
-  _check_adjusted_warning("chainwoo: number of variables adjusted from 1 to 4", 4) do
-    ADNLPProblems.chainwoo(n = 1)
-  end
-  _check_adjusted_warning("chainwoo: number of variables adjusted from 1 to 4", 4) do
-    MathOptNLPModel(PureJuMP.chainwoo(n = 1))
-  end
-
-  _check_adjusted_warning("catenary: number of variables adjusted from 10 to 9", 9) do
-    ADNLPProblems.catenary(n = 10)
-  end
-  _check_adjusted_warning("catenary: number of variables adjusted from 10 to 9", 9) do
-    MathOptNLPModel(PureJuMP.catenary(n = 10))
-  end
-
-  _check_adjusted_warning("clplatea: number of variables adjusted from 5 to 9", 9) do
-    ADNLPProblems.clplatea(n = 5)
-  end
-  _check_adjusted_warning("clplatea: number of variables adjusted from 5 to 4", 4) do
-    MathOptNLPModel(PureJuMP.clplatea(n = 5))
-  end
-  _check_adjusted_warning("clplateb: number of variables adjusted from 5 to 9", 9) do
-    ADNLPProblems.clplateb(n = 5)
-  end
-  _check_adjusted_warning("clplateb: number of variables adjusted from 5 to 4", 4) do
-    MathOptNLPModel(PureJuMP.clplateb(n = 5))
-  end
-  _check_adjusted_warning("clplatec: number of variables adjusted from 5 to 9", 9) do
-    ADNLPProblems.clplatec(n = 5)
-  end
-  _check_adjusted_warning("clplatec: number of variables adjusted from 5 to 4", 4) do
-    MathOptNLPModel(PureJuMP.clplatec(n = 5))
-  end
-
-  _check_adjusted_warning("fminsrf2: number of variables adjusted from 1 to 4", 4) do
-    ADNLPProblems.fminsrf2(n = 1)
-  end
-  _check_adjusted_warning("fminsrf2: number of variables adjusted from 1 to 4", 4) do
-    MathOptNLPModel(PureJuMP.fminsrf2(n = 1))
-  end
-
-  _check_adjusted_warning("powellsg: number of variables adjusted from 1 to 4", 4) do
-    ADNLPProblems.powellsg(n = 1)
-  end
-  _check_adjusted_warning("powellsg: number of variables adjusted from 1 to 4", 4) do
-    ADNLPProblems.powellsg(use_nls = true, n = 1)
-  end
-  _check_adjusted_warning("powellsg: number of variables adjusted from 1 to 4", 4) do
-    MathOptNLPModel(PureJuMP.powellsg(n = 1))
-  end
-  _check_adjusted_warning("powellsg: number of variables adjusted from 1 to 4", 4) do
-    MathOptNLPModel(PureJuMP.powellsg(use_nls = true, n = 1))
-  end
-
-  _check_adjusted_warning("srosenbr: number of variables adjusted from 1 to 2", 2) do
-    ADNLPProblems.srosenbr(n = 1)
-  end
-  _check_adjusted_warning("srosenbr: number of variables adjusted from 1 to 2", 2) do
-    MathOptNLPModel(PureJuMP.srosenbr(n = 1))
-  end
-
-  _check_adjusted_warning("watson: number of variables adjusted from 1 to 2", 2) do
-    ADNLPProblems.watson(n = 1)
-  end
-  _check_adjusted_warning("watson: number of variables adjusted from 1 to 2", 2) do
-    ADNLPProblems.watson(use_nls = true, n = 1)
-  end
-
-  _check_adjusted_warning("woods: number of variables adjusted from 1 to 4", 4) do
-    ADNLPProblems.woods(n = 1)
-  end
-  _check_adjusted_warning("woods: number of variables adjusted from 1 to 4", 4) do
-    MathOptNLPModel(PureJuMP.woods(n = 1))
-  end
-
-  _check_adjusted_warning("bearing: number of variables adjusted from 1 to 9", 9) do
-    ADNLPProblems.bearing(n = 1)
-  end
-  _check_adjusted_warning("bearing: number of variables adjusted from 1 to 9", 9) do
-    MathOptNLPModel(PureJuMP.bearing(n = 1))
-  end
-
-  _check_adjusted_warning("broydn7d: number of variables adjusted from 1 to 2", 2) do
-    MathOptNLPModel(PureJuMP.broydn7d(n = 1))
-  end
-
-  _check_adjusted_warning("dixmaan: number of variables adjusted from 1 to 3", 3) do
-    MathOptNLPModel(PureJuMP.dixmaane(n = 1))
-  end
-  _check_adjusted_warning("dixmaan: number of variables adjusted from 1 to 3", 3) do
-    MathOptNLPModel(PureJuMP.dixmaani(n = 1))
-  end
-  _check_adjusted_warning("dixmaan: number of variables adjusted from 1 to 3", 3) do
-    MathOptNLPModel(PureJuMP.dixmaanm(n = 1))
-  end
-
-  _check_adjusted_warning("spmsrtls: number of variables adjusted from 99 to 100", 100) do
-    ADNLPProblems.spmsrtls(use_nls = true, n = 99)
-  end
-  _check_adjusted_warning("NZF1: number of variables adjusted from 1 to 26", 26) do
-    ADNLPProblems.NZF1(use_nls = true, n = 1)
+  for case in warning_cases
+    _check_adjusted_warning(case.ctor, case.msg, case.nvar)
   end
 end
 

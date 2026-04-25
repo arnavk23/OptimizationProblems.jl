@@ -11,7 +11,9 @@ macro adjust_nvar_warn(problem_name, n_orig, n)
   return quote
     local _n_orig = $(esc(n_orig))
     local _n = $(esc(n))
-    (_n == _n_orig) || @warn(string($(esc(problem_name)), ": number of variables adjusted from ", _n_orig, " to ", _n))
+    (_n == _n_orig) || @warn(
+      string($(esc(problem_name)), ": number of variables adjusted from ", _n_orig, " to ", _n)
+    )
   end
 end
 

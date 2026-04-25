@@ -3,17 +3,17 @@
   for s in syms
     if !isdefined(mod, s)
       push!(missing, s)
+    end
   end
-end
   return (pid = myid(), missing = missing)
 end
 
 probes = @sync begin
   for pid in workers()
     @async remotecall_fetch(probe_missing, pid, ADNLPProblems, list_problems_ADNLPProblems)
-      end
-    end
-  @info "ADNLPProblems missing per worker" probes
+  end
+end
+@info "ADNLPProblems missing per worker" probes
 
 probes = @sync begin
   for pid in workers()
@@ -45,13 +45,14 @@ function _warning_problems()
 end
 
 function _check_adjusted_warning(prob::Symbol, backend::Symbol)
-  make_model(n) = let
-    mod = backend === :ad ? ADNLPProblems :
-          backend === :jump ? PureJuMP :
-          error("Unknown backend $(backend) for $(prob)")
-    model = getfield(mod, prob)(; n = n)
-    backend === :jump ? MathOptNLPModel(model) : model
-  end
+  make_model(n) =
+    let
+      mod =
+        backend === :ad ? ADNLPProblems :
+        backend === :jump ? PureJuMP : error("Unknown backend $(backend) for $(prob)")
+      model = getfield(mod, prob)(; n = n)
+      backend === :jump ? MathOptNLPModel(model) : model
+    end
 
   for n in (1, 2, 3, 4, 5, 9, 10, 26, 99, 100)
     nlp_probe = try

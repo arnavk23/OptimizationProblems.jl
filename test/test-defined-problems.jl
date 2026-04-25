@@ -3,17 +3,17 @@
   for s in syms
     if !isdefined(mod, s)
       push!(missing, s)
-    end
   end
+end
   return (pid = myid(), missing = missing)
 end
 
 probes = @sync begin
   for pid in workers()
     @async remotecall_fetch(probe_missing, pid, ADNLPProblems, list_problems_ADNLPProblems)
-  end
-end
-@info "ADNLPProblems missing per worker" probes
+      end
+    end
+  @info "ADNLPProblems missing per worker" probes
 
 probes = @sync begin
   for pid in workers()
@@ -22,60 +22,64 @@ probes = @sync begin
 end
 @info "PureJuMP missing per worker" probes
 
-function _check_adjusted_warning(ctor::Function, expected_msg::AbstractString, expected_nvar::Integer)
-  nlp = @test_logs (:warn, expected_msg) ctor()
-  @test nlp.meta.nvar == expected_nvar
+function _warning_problems()
+  probs = Set{Symbol}()
+  src_root = joinpath(@__DIR__, "..", "src")
+
+  for subdir in ("ADNLPProblems", "PureJuMP")
+    for file in readdir(joinpath(src_root, subdir))
+      endswith(file, ".jl") || continue
+      source = read(joinpath(src_root, subdir, file), String)
+      occursin("@adjust_nvar_warn", source) || continue
+
+      stem = Symbol(first(splitext(file)))
+      if stem in list_problems
+        push!(probs, stem)
+      elseif startswith(String(stem), "dixmaan_")
+        union!(probs, filter(prob -> startswith(String(prob), "dixmaan"), list_problems))
+      end
+    end
+  end
+
+  return sort!(collect(probs))
 end
 
-function _check_adjusted_warning(expected_msg::AbstractString, expected_nvar::Integer, ctor::Function)
-  _check_adjusted_warning(ctor, expected_msg, expected_nvar)
+function _check_adjusted_warning(prob::Symbol, backend::Symbol)
+  make_model(n) = let
+    mod = backend === :ad ? ADNLPProblems :
+          backend === :jump ? PureJuMP :
+          error("Unknown backend $(backend) for $(prob)")
+    model = getfield(mod, prob)(; n = n)
+    backend === :jump ? MathOptNLPModel(model) : model
+  end
+
+  for n in (1, 2, 3, 4, 5, 9, 10, 26, 99, 100)
+    nlp_probe = try
+      make_model(n)
+    catch
+      continue
+    end
+
+    n_adj = nlp_probe.meta.nvar
+
+    n_adj == n && continue
+
+    msg_re = Regex("number of variables adjusted from $(n) to $(n_adj)")
+    @test_logs (:warn, msg_re) make_model(n)
+    @test_nowarn make_model(n_adj)
+    return
+  end
+
+  @test false
 end
 
 @testset "Adjusted dimension warnings" begin
-  warning_cases = [
-    (; msg = "NZF1: number of variables adjusted from 1 to 26", nvar = 26, ctor = () -> ADNLPProblems.NZF1(n = 1)),
-    (; msg = "NZF1: number of variables adjusted from 1 to 26", nvar = 26, ctor = () -> MathOptNLPModel(PureJuMP.NZF1(n = 1))),
-    (; msg = "spmsrtls: number of variables adjusted from 99 to 100", nvar = 100, ctor = () -> ADNLPProblems.spmsrtls(n = 99)),
-    (; msg = "spmsrtls: number of variables adjusted from 99 to 100", nvar = 100, ctor = () -> MathOptNLPModel(PureJuMP.spmsrtls(n = 99))),
-    (; msg = "chainwoo: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.chainwoo(n = 1)),
-    (; msg = "chainwoo: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.chainwoo(n = 1))),
-    (; msg = "catenary: number of variables adjusted from 10 to 9", nvar = 9, ctor = () -> ADNLPProblems.catenary(n = 10)),
-    (; msg = "catenary: number of variables adjusted from 10 to 9", nvar = 9, ctor = () -> MathOptNLPModel(PureJuMP.catenary(n = 10))),
-    (; msg = "clplatea: number of variables adjusted from 5 to 9", nvar = 9, ctor = () -> ADNLPProblems.clplatea(n = 5)),
-    (; msg = "clplatea: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.clplatea(n = 5))),
-    (; msg = "clplateb: number of variables adjusted from 5 to 9", nvar = 9, ctor = () -> ADNLPProblems.clplateb(n = 5)),
-    (; msg = "clplateb: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.clplateb(n = 5))),
-    (; msg = "clplatec: number of variables adjusted from 5 to 9", nvar = 9, ctor = () -> ADNLPProblems.clplatec(n = 5)),
-    (; msg = "clplatec: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.clplatec(n = 5))),
-    (; msg = "fminsrf2: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.fminsrf2(n = 1)),
-    (; msg = "fminsrf2: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.fminsrf2(n = 1))),
-    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.powellsg(n = 1)),
-    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.powellsg(use_nls = true, n = 1)),
-    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.powellsg(n = 1))),
-    (; msg = "powellsg: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.powellsg(use_nls = true, n = 1))),
-    (; msg = "srosenbr: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> ADNLPProblems.srosenbr(n = 1)),
-    (; msg = "srosenbr: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> MathOptNLPModel(PureJuMP.srosenbr(n = 1))),
-    (; msg = "watson: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> ADNLPProblems.watson(n = 1)),
-    (; msg = "watson: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> ADNLPProblems.watson(use_nls = true, n = 1)),
-    (; msg = "watson: number of variables adjusted from 1 to 2", nvar = 2, ctor = () -> MathOptNLPModel(PureJuMP.watson(n = 1))),
-    (; msg = "woods: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> ADNLPProblems.woods(n = 1)),
-    (; msg = "woods: number of variables adjusted from 1 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.woods(n = 1))),
-    (; msg = "bearing: number of variables adjusted from 1 to 9", nvar = 9, ctor = () -> ADNLPProblems.bearing(n = 1)),
-    (; msg = "bearing: number of variables adjusted from 1 to 9", nvar = 9, ctor = () -> MathOptNLPModel(PureJuMP.bearing(n = 1))),
-    (; msg = "broydn7d: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> ADNLPProblems.broydn7d(n = 5)),
-    (; msg = "broydn7d: number of variables adjusted from 5 to 4", nvar = 4, ctor = () -> MathOptNLPModel(PureJuMP.broydn7d(n = 5))),
-    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> ADNLPProblems.dixmaane(n = 1)),
-    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> MathOptNLPModel(PureJuMP.dixmaane(n = 1))),
-    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> ADNLPProblems.dixmaani(n = 1)),
-    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> MathOptNLPModel(PureJuMP.dixmaani(n = 1))),
-    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> ADNLPProblems.dixmaanm(n = 1)),
-    (; msg = "dixmaan: number of variables adjusted from 1 to 3", nvar = 3, ctor = () -> MathOptNLPModel(PureJuMP.dixmaanm(n = 1))),
-    (; msg = "spmsrtls: number of variables adjusted from 99 to 100", nvar = 100, ctor = () -> ADNLPProblems.spmsrtls(use_nls = true, n = 99)),
-    (; msg = "NZF1: number of variables adjusted from 1 to 26", nvar = 26, ctor = () -> ADNLPProblems.NZF1(use_nls = true, n = 1)),
-  ]
+  probs = _warning_problems()
+  @test !isempty(probs)
 
-  for case in warning_cases
-    _check_adjusted_warning(case.ctor, case.msg, case.nvar)
+  for prob in probs
+    isdefined(ADNLPProblems, prob) && _check_adjusted_warning(prob, :ad)
+    isdefined(PureJuMP, prob) && _check_adjusted_warning(prob, :jump)
   end
 end
 

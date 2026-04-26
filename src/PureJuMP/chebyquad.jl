@@ -15,45 +15,45 @@
 #
 #   classification SBR2-AN-V-0
 export chebyquad
+
+# Chebyshev polynomial of the first kind via recurrence: T_0=1, T_1=x,
+# T_i(x) = 2x*T_{i-1}(x) - T_{i-2}(x).
+function _cheby_recurrence(xj::Real, i::Integer)
+  i == 0 && return one(xj)
+  i == 1 && return xj
+  tk_minus_1 = one(xj)
+  tk = xj
+  for _ = 2:i
+    tk_plus_1 = 2 * xj * tk - tk_minus_1
+    tk_minus_1 = tk
+    tk = tk_plus_1
+  end
+  return tk
+end
+
 function chebyquad(args...; n::Int = default_nvar, m::Int = n, kwargs...)
   m = max(m, n)
   nlp = Model()
-  x0 = [j/(n + 1) for j = 1:n]
+  x0 = [j / (n + 1) for j = 1:n]
   @variable(nlp, x[j = 1:n], start = x0[j])
-  # Chebyshev polynomial of the first kind, using explicit expression
+
+  # Register the recurrence evaluator for each required polynomial degree as a
+  # named univariate JuMP operator (one per degree)
+  for k = 1:m
+    op = Symbol("_cheby_$k")
+    @operator(nlp, op, 1, xj -> _cheby_recurrence(xj, k))
+  end
+
   @NLobjective(
     nlp,
     Min,
     0.5 * sum(
-      (
-        1 / n * sum(
-          ifelse(
-            2 * x[j] - 1 ≥ 1,
-            cosh(2i * acosh(2 * x[j] - 1)),
-            ifelse(
-              2 * x[j] - 1 ≤ -1,
-              (-1)^(2i) * cosh(2i * acosh(1 - 2 * x[j])),
-              cos(2i * acos(2 * x[j] - 1)),
-            ),
-          ) for j = 1:n
-        ) + 1 / ((2i)^2 - 1)
-      )^2 for i = 1:div(m, 2)
-    ) +
-    0.5 * sum(
-      (
-        1 / n * sum(
-          ifelse(
-            2 * x[j] - 1 ≥ 1,
-            cosh((2i - 1) * acosh(2 * x[j] - 1)),
-            ifelse(
-              2 * x[j] - 1 ≤ -1,
-              (-1)^(2i - 1) * cosh((2i - 1) * acosh(1 - 2 * x[j])),
-              cos((2i - 1) * acos(2 * x[j] - 1)),
-            ),
-          ) for j = 1:n
-        )
-      )^2 for i = 1:div(m + 1, 2)
-    )
+      (1 / n * sum(nlp[Symbol("_cheby_$(2i)")](x[j]) for j = 1:n) + 1 / ((2i)^2 - 1))^2
+      for i = 1:div(m, 2)
+    ) + 0.5 * sum(
+      (1 / n * sum(nlp[Symbol("_cheby_$(2i - 1)")](x[j]) for j = 1:n))^2
+      for i = 1:div(m + 1, 2)
+    ),
   )
   return nlp
 end

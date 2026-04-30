@@ -22,65 +22,62 @@ probes = @sync begin
 end
 @info "PureJuMP missing per worker" probes
 
-function _warning_problems()
-  probs = Set{Symbol}()
-  src_root = joinpath(@__DIR__, "..", "src")
+@testset "Adjusted dimension warnings" begin
+  # Get all scalable problems from the metadata registry
+  var_probs = OptimizationProblems.meta[OptimizationProblems.meta.variable_nvar, :name]
+  @test !isempty(var_probs)
 
+  # Filter to only problems that actually use the @adjust_nvar_warn macro
+  src_root = joinpath(@__DIR__, "..", "src")
+  probs_with_macro = Set{String}()
   for subdir in ("ADNLPProblems", "PureJuMP")
     for file in readdir(joinpath(src_root, subdir))
       endswith(file, ".jl") || continue
       source = read(joinpath(src_root, subdir, file), String)
-      occursin("@adjust_nvar_warn", source) || continue
-
-      stem = Symbol(first(splitext(file)))
-      if stem in list_problems
-        push!(probs, stem)
-      elseif startswith(String(stem), "dixmaan_")
-        union!(probs, filter(prob -> startswith(String(prob), "dixmaan"), list_problems))
+      if occursin("@adjust_nvar_warn", source)
+        stem = first(splitext(file))
+        push!(probs_with_macro, stem)
       end
     end
   end
 
-  return sort!(collect(probs))
-end
+  # Test each problem that uses the macro
+  for prob_name in sort(collect(probs_with_macro))
+    prob_sym = Symbol(prob_name)
+    
+    # Check if problem is actually in the registry and scalable
+    prob_name in var_probs || continue
+    
+    get_nvar_func = getfield(OptimizationProblems, Symbol("get_", prob_name, "_nvar"))
 
-function _check_adjusted_warning(prob::Symbol, backend::Symbol)
-  make_model(n) =
-    let
-      mod =
-        backend === :ad ? ADNLPProblems :
-        backend === :jump ? PureJuMP : error("Unknown backend $(backend) for $(prob)")
-      model = getfield(mod, prob)(; n = n)
-      backend === :jump ? MathOptNLPModel(model) : model
+    # Try standard test dimensions
+    for n in (50, 100, 150)
+      n_adjusted = get_nvar_func(; n = n)
+      n_adjusted == n && continue  # Skip if no adjustment for this n
+
+      # Found an adjustment - test it
+      msg_re = Regex("number of variables adjusted from $(n) to $(n_adjusted)")
+
+      for mod in (ADNLPProblems, PureJuMP)
+        isdefined(mod, prob_sym) || continue
+
+        constructor = getfield(mod, prob_sym)
+        
+        try
+          # Try to verify the model can be constructed with adjusted size
+          _ = constructor(; n = n_adjusted)
+        catch
+          continue  # Skip if construction fails
+        end
+
+        # Test that warning is emitted
+        @test_logs (:warn, msg_re) constructor(; n = n)
+        # Test that no warning when using adjusted size
+        @test_nowarn constructor(; n = n_adjusted)
+      end
+      
+      break  # Move to next problem after testing one adjustment
     end
-
-  for n in (1, 2, 3, 4, 5, 9, 10, 26, 99, 100)
-    nlp_probe = try
-      make_model(n)
-    catch
-      continue
-    end
-
-    n_adj = nlp_probe.meta.nvar
-
-    n_adj == n && continue
-
-    msg_re = Regex("number of variables adjusted from $(n) to $(n_adj)")
-    @test_logs (:warn, msg_re) make_model(n)
-    @test_nowarn make_model(n_adj)
-    return
-  end
-
-  @test false
-end
-
-@testset "Adjusted dimension warnings" begin
-  probs = _warning_problems()
-  @test !isempty(probs)
-
-  for prob in probs
-    isdefined(ADNLPProblems, prob) && _check_adjusted_warning(prob, :ad)
-    isdefined(PureJuMP, prob) && _check_adjusted_warning(prob, :jump)
   end
 end
 

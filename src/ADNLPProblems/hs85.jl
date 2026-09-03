@@ -47,7 +47,7 @@ function hs85(; type::Type{T} = Float64, kwargs...) where {T}
   x0 = T[900.0, 80.0, 115.0, 267.0, 27.0]
 
   # Best known value ≈ -1.90513375
-  function f(x::AbstractVector{T})
+  function f(x)
     # All intermediates (identical to those used in constraints)
     y1 = x[2] + x[3] + T(41.6)
     c1 = T(0.024) * x[4] - T(4.62)
@@ -96,7 +96,7 @@ function hs85(; type::Type{T} = Float64, kwargs...) where {T}
   end
 
   # Constraint function (38 nonlinear inequalities, all of the form c(x) >= 0)
-  function c!(cx::AbstractVector{T}, x::AbstractVector{T})
+  function c!(cx, x)
     # All intermediates (identical to those used in objective)
     y1 = x[2] + x[3] + T(41.6)
     c1 = T(0.024) * x[4] - T(4.62)
@@ -132,50 +132,74 @@ function hs85(; type::Type{T} = Float64, kwargs...) where {T}
     c15 = y13 / y15 - y13 / T(0.52)
     c16 = T(1.104) - T(0.72) * y15
     c17 = y9 + x[5]
-    # Constraints
-    cx[1] = T(1.5) * x[2] - x[3]
-    cx[2] = y1 - T(213.1)
-    cx[3] = T(405.23) - y1
-    cx[4] = y2 - a[2]
-    cx[5] = y3 - a[3]
-    cx[6] = y4 - a[4]
-    cx[7] = y5 - a[5]
-    cx[8] = y6 - a[6]
-    cx[9] = y7 - a[7]
-    cx[10] = y8 - a[8]
-    cx[11] = y9 - a[9]
-    cx[12] = y10 - a[10]
-    cx[13] = y11 - a[11]
-    cx[14] = y12 - a[12]
-    cx[15] = y13 - a[13]
-    cx[16] = y14 - a[14]
-    cx[17] = y15 - a[15]
-    cx[18] = y16 - a[16]
-    cx[19] = y17 - a[17]
-    cx[20] = b[2] - y2
-    cx[21] = b[3] - y3
-    cx[22] = b[4] - y4
-    cx[23] = b[5] - y5
-    cx[24] = b[6] - y6
-    cx[25] = b[7] - y7
-    cx[26] = b[8] - y8
-    cx[27] = b[9] - y9
-    cx[28] = b[10] - y10
-    cx[29] = b[11] - y11
-    cx[30] = b[12] - y12
-    cx[31] = b[13] - y13
-    cx[32] = b[14] - y14
-    cx[33] = b[15] - y15
-    cx[34] = b[16] - y16
-    cx[35] = b[17] - y17
-    cx[36] = y4 - (T(0.28) / T(0.72)) * y5
-    cx[37] = T(21) - T(3496) * y2 / c12
-    cx[38] = T(62212) / c17 - T(110.6) - y1
+    # 35 nonlinear constraints: cx[1:18] of the form c(x) >= 0, cx[19:35] of the form c(x) <= 0.
+    # The 3 remaining (linear) constraints of HS85 are passed separately below.
+    cx[1] = y2 - a[2]
+    cx[2] = y3 - a[3]
+    cx[3] = y4 - a[4]
+    cx[4] = y5 - a[5]
+    cx[5] = y6 - a[6]
+    cx[6] = y7 - a[7]
+    cx[7] = y8 - a[8]
+    cx[8] = y9 - a[9]
+    cx[9] = y10 - a[10]
+    cx[10] = y11 - a[11]
+    cx[11] = y12 - a[12]
+    cx[12] = y13 - a[13]
+    cx[13] = y14 - a[14]
+    cx[14] = y15 - a[15]
+    cx[15] = y16 - a[16]
+    cx[16] = y17 - a[17]
+    cx[17] = y4 - (T(0.28) / T(0.72)) * y5
+    cx[18] = T(62212) / c17 - T(110.6) - y1
+    cx[19] = y2 - b[2]
+    cx[20] = y3 - b[3]
+    cx[21] = y4 - b[4]
+    cx[22] = y5 - b[5]
+    cx[23] = y6 - b[6]
+    cx[24] = y7 - b[7]
+    cx[25] = y8 - b[8]
+    cx[26] = y9 - b[9]
+    cx[27] = y10 - b[10]
+    cx[28] = y11 - b[11]
+    cx[29] = y12 - b[12]
+    cx[30] = y13 - b[13]
+    cx[31] = y14 - b[14]
+    cx[32] = y15 - b[15]
+    cx[33] = y16 - b[16]
+    cx[34] = y17 - b[17]
+    cx[35] = T(3496) * y2 / c12 - T(21)
     return cx
   end
-  # Constraint bounds: all inequalities of the form c(x) >= 0
+
+  # 3 linear constraints, given as a sparse Jacobian (rows, cols, vals):
+  # cx[1] = 1.5 x2 - x3 (>= 0), cx[2] = cx[3] = x2 + x3 (bounded below and above respectively)
+  clinrows = [1, 1, 2, 2, 3, 3]
+  clincols = [2, 3, 2, 3, 2, 3]
+  clinvals = T[1.5, -1, 1, 1, 1, 1]
+
+  # Constraint bounds: overall cx[1:3] are the linear constraints above,
+  # cx[4:21] are of the form c(x) >= 0, cx[22:38] are of the form c(x) <= 0.
   m = 38
   cl = zeros(T, m)
   cu = fill(T(Inf), m)
-  return ADNLPModels.ADNLPModel!(f, x0, lvar, uvar, c!, cl, cu; name = "hs85", kwargs...)
+  cl[2], cu[3] = T(171.5), T(363.63)
+  cl[3] = T(-Inf)
+  for i = 22:38
+    cl[i], cu[i] = T(-Inf), zero(T)
+  end
+  return ADNLPModels.ADNLPModel!(
+    f,
+    x0,
+    lvar,
+    uvar,
+    clinrows,
+    clincols,
+    clinvals,
+    c!,
+    cl,
+    cu;
+    name = "hs85",
+    kwargs...,
+  )
 end

@@ -17,7 +17,9 @@ hs89_meta = Dict(
   :defined_everywhere => missing,
   :origin => :unknown,
 )
-get_hs89_nvar(; n::Integer = 3, kwargs...) = 3
-get_hs89_ncon(; n::Integer = 1, kwargs...) = 1
-get_hs89_nlin(; n::Integer = 1, kwargs...) = 0
-get_hs89_nnln(; n::Integer = 1, kwargs...) = 1
+get_hs89_nvar(; n::Integer = default_nvar, kwargs...) = 3
+get_hs89_ncon(; n::Integer = default_nvar, kwargs...) = 1
+get_hs89_nlin(; n::Integer = default_nvar, kwargs...) = 0
+get_hs89_nnln(; n::Integer = default_nvar, kwargs...) = 1
+get_hs89_nequ(; n::Integer = default_nvar, kwargs...) = 1
+get_hs89_nineq(; n::Integer = default_nvar, kwargs...) = 0

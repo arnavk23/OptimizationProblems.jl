@@ -39,7 +39,7 @@ function hs89(; type::Type{T} = Float64, kwargs...) where {T}
   A = [2 * sin(mu[j]) / (mu[j] + sin(mu[j]) * cos(mu[j])) for j = 1:30]
 
   # Objective: φ(x) = ∑_{j=1}^{30} A_j ρ_j(x)
-  function f(x::AbstractVector{T})
+  function f(x)
     s = zero(T)
     r = x[1]^2 + x[2]^2 + x[3]^2
     for j = 1:30
@@ -53,7 +53,7 @@ function hs89(; type::Type{T} = Float64, kwargs...) where {T}
 
   # Equality constraint c(x) = 0
   # Full expression with cross terms (double sum over i < j)
-  function c!(cx::AbstractVector{T}, x::AbstractVector{T})
+  function c!(cx, x)
     r = x[1]^2 + x[2]^2 + x[3]^2
     termA = zero(T)
     termB = zero(T)

@@ -115,7 +115,7 @@ function hs85(args...; kwargs...)
   @constraint(m, 62212 / c17 - 110.6 >= y1)
 
   # Objective
-  @NLobjective(
+  @objective(
     m,
     Min,
     -5.843e-7 * y17 +

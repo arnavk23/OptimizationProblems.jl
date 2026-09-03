@@ -14,12 +14,7 @@
 export hs89
 
 "HS89 model"
-function hs89(
-  args...;
-  optimizer = nothing,
-  optimizer_attributes = nothing,
-  kwargs...,
-)
+function hs89(args...; optimizer = nothing, optimizer_attributes = nothing, kwargs...)
   model = optimizer === nothing ? Model() : Model(optimizer)
 
   if optimizer !== nothing && optimizer_attributes === nothing
@@ -78,16 +73,16 @@ function hs89(
   @expression(
     model,
     ρ[j = 1:30],
-    let μ² = mu[j]^2, r = x1^2 + x2^2 + x3^2, r23 = x2^2 + x3^2, r3 = x3^2;
+    let μ² = mu[j]^2, r = x1^2 + x2^2 + x3^2, r23 = x2^2 + x3^2, r3 = x3^2
       -(exp(-μ² * r) + 2*exp(-μ² * r23) + 2*exp(-μ² * r3) + 1) / μ²
     end
   )
 
   # Objective: ∑ Aⱼ ρⱼ
-  @NLobjective(model, Min, sum(A[j] * ρ[j] for j = 1:30))
+  @objective(model, Min, sum(A[j] * ρ[j] for j = 1:30))
 
   # Constraint: termA + termB = 2/15
-  @NLconstraint(
+  @constraint(
     model,
     eq,
     sum(A[j]^2 * ρ[j]^2 * (sin(2*mu[j])/(2*mu[j]) + 1)/2 for j = 1:30) + sum(

@@ -24,7 +24,7 @@ function hs85(args...; kwargs...)
   @variable(m, 193.0 ≤ x4 ≤ 287.0966)
   @variable(m, 25.0 ≤ x5 ≤ 84.1988)
 
-  # Intermediates (as @expression or @variable + @NLconstraint)
+  # Intermediates defined with @expression
   @expression(m, y1, x2 + x3 + 41.6)
   @expression(m, c1, 0.024 * x4 - 4.62)
   @expression(m, y2, 12.5 / c1 + 12)
